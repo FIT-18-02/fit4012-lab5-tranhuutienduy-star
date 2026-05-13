@@ -3,7 +3,7 @@ CXXFLAGS := -std=c++17 -Wall -Wextra -pedantic
 
 ENCRYPT_TARGET := encrypt
 DECRYPT_TARGET := decrypt
-
+ 
 .PHONY: all clean run encrypt-sample decrypt-sample test
 
 all: $(ENCRYPT_TARGET) $(DECRYPT_TARGET)
