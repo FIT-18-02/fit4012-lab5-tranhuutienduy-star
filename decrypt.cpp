@@ -5,7 +5,7 @@
 #include <iomanip>
 #include "structures.h"
 
-using namespace std; 
+using namespace std;  
 
 /*
  * XOR state với round key
