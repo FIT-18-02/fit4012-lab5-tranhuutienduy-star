@@ -2,7 +2,7 @@
  * used in encrypt.cpp and decrypt.cpp
  */
 #ifndef STRUCTURES_H
-#define STRUCTURES_H
+#define STRUCTURES_H 
 
 // Encryption: Forward Rijndael S-box 
 unsigned char s[256] =
