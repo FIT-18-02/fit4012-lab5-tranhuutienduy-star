@@ -1,6 +1,6 @@
 /* "structures.h" defines the look-up tables and KeyExpansion function 
  * used in encrypt.cpp and decrypt.cpp
- */
+ */ 
 #ifndef STRUCTURES_H 
 #define STRUCTURES_H 
 
