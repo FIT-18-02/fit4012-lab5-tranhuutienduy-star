@@ -7,7 +7,7 @@
 #include "structures.h"
 
 using namespace std;
-
+ 
 /*
  * XOR state với round key
  */
