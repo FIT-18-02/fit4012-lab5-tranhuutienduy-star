@@ -7,7 +7,7 @@
 
 using namespace std;  
 
-/*
+/* 
  * XOR state với round key
  */
 void SubRoundKey(unsigned char *state, unsigned char *roundKey) {
