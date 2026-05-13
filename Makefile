@@ -26,10 +26,11 @@ decrypt-sample: $(DECRYPT_TARGET)
 test: all
 	bash tests/test_aes_compile.sh
 	bash tests/test_encrypt_decrypt_roundtrip.sh
-	bash tests/test_multiblock_padding.sh
+	bash tests/test_cbc_roundtrip.sh
 	bash tests/test_tamper_negative.sh
 	bash tests/test_wrong_key_negative.sh
 
 clean:
-	rm -f $(ENCRYPT_TARGET) $(DECRYPT_TARGET) message.aes
+	rm -f $(ENCRYPT_TARGET) $(DECRYPT_TARGET)
+	rm -f message.aes
 	rm -rf build
