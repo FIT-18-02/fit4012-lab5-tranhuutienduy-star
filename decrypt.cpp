@@ -1,224 +1,260 @@
-/* decrypt.cpp
- * Performs decryption using AES 128-bit
-
- */
 #include <iostream>
-#include <cstring>
 #include <fstream>
 #include <sstream>
+#include <vector>
+#include <iomanip>
 #include "structures.h"
 
 using namespace std;
 
-/* Used in Round() and serves as the final round during decryption
- * SubRoundKey is simply an XOR of a 128-bit block with the 128-bit key.
- * So basically does the same as AddRoundKey in the encryption
+/*
+ * XOR state với round key
  */
-void SubRoundKey(unsigned char * state, unsigned char * roundKey) {
-	for (int i = 0; i < 16; i++) {
-		state[i] ^= roundKey[i];
-	}
+void SubRoundKey(unsigned char *state, unsigned char *roundKey) {
+    for (int i = 0; i < 16; i++) {
+        state[i] ^= roundKey[i];
+    }
 }
 
-/* InverseMixColumns uses mul9, mul11, mul13, mul14 look-up tables
- * Unmixes the columns by reversing the effect of MixColumns in encryption
+/*
+ * Inverse MixColumns
  */
-void InverseMixColumns(unsigned char * state) {
-	unsigned char tmp[16];
+void InverseMixColumns(unsigned char *state) {
+    unsigned char tmp[16];
 
-	tmp[0] = (unsigned char)mul14[state[0]] ^ mul11[state[1]] ^ mul13[state[2]] ^ mul9[state[3]];
-	tmp[1] = (unsigned char)mul9[state[0]] ^ mul14[state[1]] ^ mul11[state[2]] ^ mul13[state[3]];
-	tmp[2] = (unsigned char)mul13[state[0]] ^ mul9[state[1]] ^ mul14[state[2]] ^ mul11[state[3]];
-	tmp[3] = (unsigned char)mul11[state[0]] ^ mul13[state[1]] ^ mul9[state[2]] ^ mul14[state[3]];
+    tmp[0]  = mul14[state[0]]  ^ mul11[state[1]]  ^ mul13[state[2]]  ^ mul9[state[3]];
+    tmp[1]  = mul9[state[0]]   ^ mul14[state[1]]  ^ mul11[state[2]]  ^ mul13[state[3]];
+    tmp[2]  = mul13[state[0]]  ^ mul9[state[1]]   ^ mul14[state[2]]  ^ mul11[state[3]];
+    tmp[3]  = mul11[state[0]]  ^ mul13[state[1]]  ^ mul9[state[2]]   ^ mul14[state[3]];
 
-	tmp[4] = (unsigned char)mul14[state[4]] ^ mul11[state[5]] ^ mul13[state[6]] ^ mul9[state[7]];
-	tmp[5] = (unsigned char)mul9[state[4]] ^ mul14[state[5]] ^ mul11[state[6]] ^ mul13[state[7]];
-	tmp[6] = (unsigned char)mul13[state[4]] ^ mul9[state[5]] ^ mul14[state[6]] ^ mul11[state[7]];
-	tmp[7] = (unsigned char)mul11[state[4]] ^ mul13[state[5]] ^ mul9[state[6]] ^ mul14[state[7]];
+    tmp[4]  = mul14[state[4]]  ^ mul11[state[5]]  ^ mul13[state[6]]  ^ mul9[state[7]];
+    tmp[5]  = mul9[state[4]]   ^ mul14[state[5]]  ^ mul11[state[6]]  ^ mul13[state[7]];
+    tmp[6]  = mul13[state[4]]  ^ mul9[state[5]]   ^ mul14[state[6]]  ^ mul11[state[7]];
+    tmp[7]  = mul11[state[4]]  ^ mul13[state[5]]  ^ mul9[state[6]]   ^ mul14[state[7]];
 
-	tmp[8] = (unsigned char)mul14[state[8]] ^ mul11[state[9]] ^ mul13[state[10]] ^ mul9[state[11]];
-	tmp[9] = (unsigned char)mul9[state[8]] ^ mul14[state[9]] ^ mul11[state[10]] ^ mul13[state[11]];
-	tmp[10] = (unsigned char)mul13[state[8]] ^ mul9[state[9]] ^ mul14[state[10]] ^ mul11[state[11]];
-	tmp[11] = (unsigned char)mul11[state[8]] ^ mul13[state[9]] ^ mul9[state[10]] ^ mul14[state[11]];
+    tmp[8]  = mul14[state[8]]  ^ mul11[state[9]]  ^ mul13[state[10]] ^ mul9[state[11]];
+    tmp[9]  = mul9[state[8]]   ^ mul14[state[9]]  ^ mul11[state[10]] ^ mul13[state[11]];
+    tmp[10] = mul13[state[8]]  ^ mul9[state[9]]   ^ mul14[state[10]] ^ mul11[state[11]];
+    tmp[11] = mul11[state[8]]  ^ mul13[state[9]]  ^ mul9[state[10]]  ^ mul14[state[11]];
 
-	tmp[12] = (unsigned char)mul14[state[12]] ^ mul11[state[13]] ^ mul13[state[14]] ^ mul9[state[15]];
-	tmp[13] = (unsigned char)mul9[state[12]] ^ mul14[state[13]] ^ mul11[state[14]] ^ mul13[state[15]];
-	tmp[14] = (unsigned char)mul13[state[12]] ^ mul9[state[13]] ^ mul14[state[14]] ^ mul11[state[15]];
-	tmp[15] = (unsigned char)mul11[state[12]] ^ mul13[state[13]] ^ mul9[state[14]] ^ mul14[state[15]];
+    tmp[12] = mul14[state[12]] ^ mul11[state[13]] ^ mul13[state[14]] ^ mul9[state[15]];
+    tmp[13] = mul9[state[12]]  ^ mul14[state[13]] ^ mul11[state[14]] ^ mul13[state[15]];
+    tmp[14] = mul13[state[12]] ^ mul9[state[13]]  ^ mul14[state[14]] ^ mul11[state[15]];
+    tmp[15] = mul11[state[12]] ^ mul13[state[13]] ^ mul9[state[14]]  ^ mul14[state[15]];
 
-	for (int i = 0; i < 16; i++) {
-		state[i] = tmp[i];
-	}
+    for (int i = 0; i < 16; i++) {
+        state[i] = tmp[i];
+    }
 }
 
-// Shifts rows right (rather than left) for decryption
-void ShiftRows(unsigned char * state) {
-	unsigned char tmp[16];
-
-	/* Column 1 */
-	tmp[0] = state[0];
-	tmp[1] = state[13];
-	tmp[2] = state[10];
-	tmp[3] = state[7];
-
-	/* Column 2 */
-	tmp[4] = state[4];
-	tmp[5] = state[1];
-	tmp[6] = state[14];
-	tmp[7] = state[11];
-
-	/* Column 3 */
-	tmp[8] = state[8];
-	tmp[9] = state[5];
-	tmp[10] = state[2];
-	tmp[11] = state[15];
-
-	/* Column 4 */
-	tmp[12] = state[12];
-	tmp[13] = state[9];
-	tmp[14] = state[6];
-	tmp[15] = state[3];
-
-	for (int i = 0; i < 16; i++) {
-		state[i] = tmp[i];
-	}
-}
-
-/* Perform substitution to each of the 16 bytes
- * Uses inverse S-box as lookup table
+/*
+ * ShiftRows ngược
  */
-void SubBytes(unsigned char * state) {
-	for (int i = 0; i < 16; i++) { // Perform substitution to each of the 16 bytes
-		state[i] = inv_s[state[i]];
-	}
+void ShiftRows(unsigned char *state) {
+    unsigned char tmp[16];
+
+    tmp[0]  = state[0];
+    tmp[1]  = state[13];
+    tmp[2]  = state[10];
+    tmp[3]  = state[7];
+
+    tmp[4]  = state[4];
+    tmp[5]  = state[1];
+    tmp[6]  = state[14];
+    tmp[7]  = state[11];
+
+    tmp[8]  = state[8];
+    tmp[9]  = state[5];
+    tmp[10] = state[2];
+    tmp[11] = state[15];
+
+    tmp[12] = state[12];
+    tmp[13] = state[9];
+    tmp[14] = state[6];
+    tmp[15] = state[3];
+
+    for (int i = 0; i < 16; i++) {
+        state[i] = tmp[i];
+    }
 }
 
-/* Each round operates on 128 bits at a time
- * The number of rounds is defined in AESDecrypt()
- * Not surprisingly, the steps are the encryption steps but reversed
+/*
+ * Inverse S-box
  */
-void Round(unsigned char * state, unsigned char * key) {
-	SubRoundKey(state, key);
-	InverseMixColumns(state);
-	ShiftRows(state);
-	SubBytes(state);
+void SubBytes(unsigned char *state) {
+    for (int i = 0; i < 16; i++) {
+        state[i] = inv_s[state[i]];
+    }
 }
 
-// Same as Round() but no InverseMixColumns
-void InitialRound(unsigned char * state, unsigned char * key) {
-	SubRoundKey(state, key);
-	ShiftRows(state);
-	SubBytes(state);
-}
-
-/* The AES decryption function
- * Organizes all the decryption steps into one function
+/*
+ * AES Round
  */
-void AESDecrypt(unsigned char * encryptedMessage, unsigned char * expandedKey, unsigned char * decryptedMessage)
-{
-	unsigned char state[16]; // Stores the first 16 bytes of encrypted message
+void Round(unsigned char *state, unsigned char *key) {
+    SubRoundKey(state, key);
+    InverseMixColumns(state);
+    ShiftRows(state);
+    SubBytes(state);
+}
 
-	for (int i = 0; i < 16; i++) {
-		state[i] = encryptedMessage[i];
-	}
+/*
+ * Initial Round
+ */
+void InitialRound(unsigned char *state, unsigned char *key) {
+    SubRoundKey(state, key);
+    ShiftRows(state);
+    SubBytes(state);
+}
 
-	InitialRound(state, expandedKey+160);
+/*
+ * AES Decrypt 1 block
+ */
+void AESDecrypt(unsigned char *encryptedMessage,
+                unsigned char *expandedKey,
+                unsigned char *decryptedMessage) {
 
-	int numberOfRounds = 9;
+    unsigned char state[16];
 
-	for (int i = 8; i >= 0; i--) {
-		Round(state, expandedKey + (16 * (i + 1)));
-	}
+    for (int i = 0; i < 16; i++) {
+        state[i] = encryptedMessage[i];
+    }
 
-	SubRoundKey(state, expandedKey); // Final round
+    InitialRound(state, expandedKey + 160);
 
-	// Copy decrypted state to buffer
-	for (int i = 0; i < 16; i++) {
-		decryptedMessage[i] = state[i];
-	}
+    for (int i = 8; i >= 0; i--) {
+        Round(state, expandedKey + (16 * (i + 1)));
+    }
+
+    SubRoundKey(state, expandedKey);
+
+    for (int i = 0; i < 16; i++) {
+        decryptedMessage[i] = state[i];
+    }
 }
 
 int main() {
 
-	cout << "=============================" << endl;
-	cout << " 128-bit AES Decryption Tool " << endl;
-	cout << "=============================" << endl;
+    cout << "=============================" << endl;
+    cout << " 128-bit AES Decryption Tool " << endl;
+    cout << "=============================" << endl;
 
-	// Read in the message from message.aes
-	string msgstr;
-	ifstream infile;
-	infile.open("message.aes", ios::in | ios::binary);
+    /*
+     * Đọc file message.aes
+     */
+    ifstream infile("message.aes", ios::binary);
 
-	if (infile.is_open())
-	{
-		getline(infile, msgstr); // The first line of file is the message
-		cout << "Read in encrypted message from message.aes" << endl;
-		infile.close();
-	}
+    if (!infile) {
+        cerr << "ERROR: Cannot open message.aes" << endl;
+        return 1;
+    }
 
-	else cout << "Unable to open file";
+    vector<unsigned char> encryptedMessage(
+        (istreambuf_iterator<char>(infile)),
+        istreambuf_iterator<char>()
+    );
 
-	char * msg = new char[msgstr.size()+1];
+    infile.close();
 
-	strcpy(msg, msgstr.c_str());
+    if (encryptedMessage.empty()) {
+        cerr << "ERROR: Empty encrypted file" << endl;
+        return 1;
+    }
 
-	int n = strlen((const char*)msg);
+    cout << "Read encrypted message from message.aes" << endl;
 
-	unsigned char * encryptedMessage = new unsigned char[n];
-	for (int i = 0; i < n; i++) {
-		encryptedMessage[i] = (unsigned char)msg[i];
-	}
+    /*
+     * Đọc keyfile
+     */
+    ifstream keyfile("keyfile");
 
-	// Free memory
-	delete[] msg;
+    if (!keyfile) {
+        cerr << "ERROR: Cannot open keyfile" << endl;
+        return 1;
+    }
 
-	// Read in the key
-	string keystr;
-	ifstream keyfile;
-	keyfile.open("keyfile", ios::in | ios::binary);
+    string keystr;
+    getline(keyfile, keystr);
 
-	if (keyfile.is_open())
-	{
-		getline(keyfile, keystr); // The first line of file should be the key
-		cout << "Read in the 128-bit key from keyfile" << endl;
-		keyfile.close();
-	}
+    keyfile.close();
 
-	else cout << "Unable to open file";
+    istringstream hexStream(keystr);
 
-	istringstream hex_chars_stream(keystr);
-	unsigned char key[16];
-	int i = 0;
-	unsigned int c;
-	while (hex_chars_stream >> hex >> c)
-	{
-		key[i] = c;
-		i++;
-	}
+    unsigned char key[16];
+    unsigned int value;
 
-	unsigned char expandedKey[176];
+    int index = 0;
 
-	KeyExpansion(key, expandedKey);
-	
-	int messageLen = strlen((const char *)encryptedMessage);
+    while (hexStream >> hex >> value) {
 
-	unsigned char * decryptedMessage = new unsigned char[messageLen];
+        if (index >= 16) {
+            cerr << "ERROR: Key too long" << endl;
+            return 1;
+        }
 
-	for (int i = 0; i < messageLen; i += 16) {
-		AESDecrypt(encryptedMessage + i, expandedKey, decryptedMessage + i);
-	}
+        key[index++] = static_cast<unsigned char>(value);
+    }
 
-	cout << "Decrypted message in hex:" << endl;
-	for (int i = 0; i < messageLen; i++) {
-		cout << hex << (int)decryptedMessage[i];
-		cout << " ";
-	}
-	cout << endl;
-	cout << "Decrypted message: ";
-	for (int i = 0; i < messageLen; i++) {
-		cout << decryptedMessage[i];
-	}
-	cout << endl;
+    if (index != 16) {
+        cerr << "ERROR: AES-128 key must contain 16 bytes" << endl;
+        return 1;
+    }
 
-	return 0;
+    cout << "Read 128-bit key from keyfile" << endl;
+
+    /*
+     * Key expansion
+     */
+    unsigned char expandedKey[176];
+
+    KeyExpansion(key, expandedKey);
+
+    /*
+     * Kiểm tra block size
+     */
+    if (encryptedMessage.size() % 16 != 0) {
+        cerr << "ERROR: Ciphertext size is not multiple of 16 bytes" << endl;
+        return 1;
+    }
+
+    vector<unsigned char> decryptedMessage(encryptedMessage.size());
+
+    /*
+     * Decrypt từng block
+     */
+    for (size_t i = 0; i < encryptedMessage.size(); i += 16) {
+
+        AESDecrypt(
+            encryptedMessage.data() + i,
+            expandedKey,
+            decryptedMessage.data() + i
+        );
+    }
+
+    /*
+     * In hex
+     */
+    cout << "\nDecrypted message (hex):" << endl;
+
+    for (unsigned char c : decryptedMessage) {
+        cout << hex
+             << setw(2)
+             << setfill('0')
+             << (int)c
+             << " ";
+    }
+
+    cout << dec << endl;
+
+    /*
+     * In plaintext
+     */
+    cout << "\nDecrypted message:" << endl;
+
+    for (unsigned char c : decryptedMessage) {
+        cout << c;
+    }
+
+    cout << endl;
+
+    return 0;
 }
