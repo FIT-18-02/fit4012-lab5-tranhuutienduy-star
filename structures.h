@@ -249,3 +249,4 @@ void KeyExpansion(unsigned char inputKey[16], unsigned char expandedKeys[176]) {
 }
 
 #endif /* STRUCTURES_H */
+// Final update.
