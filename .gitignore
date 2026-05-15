@@ -7,6 +7,7 @@ build/
 *.o
 *.out
 
+
 # Generated AES artifact
 message.aes
 *.aes
